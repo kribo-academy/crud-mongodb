@@ -87,12 +87,23 @@ const detailUser = async (req, res) => {
 const updateUser = async (req, res) => {
   const id = req.params.id;
   const data = req.body;
+  const file = req.file;
 
   if ([null, undefined, ":id"].includes(id))
     return messages(res, 400, "Missing params id");
 
   try {
     const _id = new ObjectId(id);
+    const detail = await Users.findOne({ _id });
+
+    if (file) {
+      data.image = file.filename;
+      const path = `./public/${detail.image}`;
+
+      // check file existting image
+      if (detail.image) fs.unlinkSync(path); // delete old file
+    } else delete data.image;
+
     const result = await Users.updateOne({ _id }, { $set: { ...data } });
 
     if (result.modifiedCount) return messages(res, 200, "Update user success");
