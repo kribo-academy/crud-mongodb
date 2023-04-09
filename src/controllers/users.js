@@ -1,16 +1,27 @@
 import Users from "../modules/users.js";
 import messages from "../utils/messages.js";
 import { ObjectId } from "mongodb";
+import fs from "fs";
 
 const createUser = async (req, res) => {
   const data = req.body;
+  const file = req.file;
 
   if (!data.email || !data.password)
     return messages(res, 423, "Properti Email/Password is required");
 
   const checkEmail = await Users.findOne({ email: data.email });
 
-  if (checkEmail) return messages(res, 423, "Email has been register");
+  if (checkEmail) {
+    if (file) {
+      const path = file.path;
+      fs.unlinkSync(path);
+    }
+
+    return messages(res, 423, "Email has been register");
+  }
+
+  if (file) data.image = file.filename;
 
   Users.insertOne(data)
     .then(() => {
