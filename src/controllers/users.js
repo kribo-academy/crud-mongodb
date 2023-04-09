@@ -51,7 +51,14 @@ const allUser = async (req, res) => {
       .limit(per_page)
       .toArray();
 
-    messages(res, 200, "All data", users, { page, per_page, total });
+    const newData = users.map((item) => {
+      delete item.password;
+      return {
+        ...item,
+      };
+    });
+
+    messages(res, 200, "All data", newData, { page, per_page, total });
   } catch (error) {
     messages(res, 500, error?.message || "Internal server error");
   }
@@ -66,6 +73,8 @@ const detailUser = async (req, res) => {
   try {
     const _id = new ObjectId(id);
     const detail = await Users.findOne({ _id });
+
+    delete detail.password;
 
     if (detail) return messages(res, 200, "Detail user", detail);
 
