@@ -1,16 +1,27 @@
 import Users from "../modules/users.js";
 import messages from "../utils/messages.js";
 import { ObjectId } from "mongodb";
+import fs from "fs";
 
 const createUser = async (req, res) => {
   const data = req.body;
+  const file = req.file;
 
   if (!data.email || !data.password)
     return messages(res, 423, "Properti Email/Password is required");
 
   const checkEmail = await Users.findOne({ email: data.email });
 
-  if (checkEmail) return messages(res, 423, "Email has been register");
+  if (checkEmail) {
+    if (file) {
+      const path = file.path;
+      fs.unlinkSync(path);
+    }
+
+    return messages(res, 423, "Email has been register");
+  }
+
+  if (file) data.image = file.filename;
 
   Users.insertOne(data)
     .then(() => {
@@ -40,7 +51,14 @@ const allUser = async (req, res) => {
       .limit(per_page)
       .toArray();
 
-    messages(res, 200, "All data", users, { page, per_page, total });
+    const newData = users.map((item) => {
+      delete item.password;
+      return {
+        ...item,
+      };
+    });
+
+    messages(res, 200, "All data", newData, { page, per_page, total });
   } catch (error) {
     messages(res, 500, error?.message || "Internal server error");
   }
@@ -56,6 +74,8 @@ const detailUser = async (req, res) => {
     const _id = new ObjectId(id);
     const detail = await Users.findOne({ _id });
 
+    delete detail.password;
+
     if (detail) return messages(res, 200, "Detail user", detail);
 
     messages(res, 404, "User ID not found");
@@ -67,12 +87,23 @@ const detailUser = async (req, res) => {
 const updateUser = async (req, res) => {
   const id = req.params.id;
   const data = req.body;
+  const file = req.file;
 
   if ([null, undefined, ":id"].includes(id))
     return messages(res, 400, "Missing params id");
 
   try {
     const _id = new ObjectId(id);
+    const detail = await Users.findOne({ _id });
+
+    if (file) {
+      data.image = file.filename;
+      const path = `./public/${detail.image}`;
+
+      // check file existting image
+      if (detail.image) fs.unlinkSync(path); // delete old file
+    } else delete data.image;
+
     const result = await Users.updateOne({ _id }, { $set: { ...data } });
 
     if (result.modifiedCount) return messages(res, 200, "Update user success");
